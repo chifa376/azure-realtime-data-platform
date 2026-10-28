@@ -97,7 +97,8 @@
 									"requestInterval": "00.00:00:01.000",
 									"requestMethod": "GET",
 									"paginationRules": {
-										"supportRFC5988": "false"
+										"supportRFC5988": "false",
+										"MaxRequestNumber": "1"
 									}
 								},
 								"sink": {
