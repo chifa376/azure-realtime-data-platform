@@ -1,0 +1,14 @@
+# Terraform providers and local state
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+
+# Local variable values and saved plans
+*.tfvars
+*.tfvars.json
+*.tfplan
+
+# Crash logs
+crash.log
+crash.*.log
