@@ -1,0 +1,25 @@
+{
+	"name": "tr_velib_every_10_minutes",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "pl_ingest_velib",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Minute",
+				"interval": 10,
+				"startTime": "2026-10-28T21:00:00",
+				"endTime": "2026-10-30T23:00:00",
+				"timeZone": "Romance Standard Time"
+			}
+		}
+	}
+}
