@@ -5,10 +5,19 @@
 			"referenceName": "ls_rest_paris_data",
 			"type": "LinkedServiceReference"
 		},
+		"parameters": {
+			"p_offset": {
+				"type": "Int",
+				"defaultValue": 0
+			}
+		},
 		"annotations": [],
 		"type": "RestResource",
 		"typeProperties": {
-			"relativeUrl": "api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/records?limit=100&offset=0&order_by=stationcode"
+			"relativeUrl": {
+				"value": "@concat('api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/records?limit=100&order_by=stationcode&offset=', string(dataset().p_offset))",
+				"type": "Expression"
+			}
 		},
 		"schema": []
 	}
