@@ -39,14 +39,24 @@
 				},
 				"inputs": [
 					{
-						"referenceName": "ds_rest_velib",
-						"type": "DatasetReference"
+						"referenceName": "ds_rest_velib_full",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_offset": 0
+						}
 					}
 				],
 				"outputs": [
 					{
-						"referenceName": "ds_adls_velib_raw",
-						"type": "DatasetReference"
+						"referenceName": "ds_adls_velib_bronze",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_directory": {
+								"value": "@concat('bronze/velib/batch_id=', pipeline().RunId, '/pages')",
+								"type": "Expression"
+							},
+							"p_filename": "page_0000.json"
+						}
 					}
 				]
 			}
