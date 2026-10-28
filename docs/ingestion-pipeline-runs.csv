@@ -1,0 +1,5 @@
+"Nom du pipeline","Début de l'exécution","Fin de l'exécution","Durée","Déclenchement effectué par","État","Erreur","Exécuter","Réglages","Annotations","ID de série"
+"pl_ingest_velib","10/28/2026, 10:40:01 PM","10/28/2026, 10:45:16 PM","5m 16s","tr_velib_every_10_minutes","Opération réussie","","D'origine","","[]","26c6e02c-af54-473f-a29b-4f3b0c3150c9"
+"pl_ingest_velib","10/28/2026, 10:30:01 PM","10/28/2026, 10:35:19 PM","5m 18s","tr_velib_every_10_minutes","Opération réussie","","D'origine","","[]","0610bc1b-5d65-462b-8a84-335af2737c68"
+"pl_ingest_velib","10/28/2026, 10:20:01 PM","10/28/2026, 10:25:14 PM","5m 13s","tr_velib_every_10_minutes","Opération réussie","","D'origine","","[]","ce9bca68-e9a1-45f2-a3fd-f199c5815905"
+"pl_ingest_velib","10/28/2026, 10:10:01 PM","10/28/2026, 10:15:12 PM","5m 11s","tr_velib_every_10_minutes","Opération réussie","","D'origine","","[]","0fa2348b-7489-47c7-93ea-ad14fc58c2d4"
