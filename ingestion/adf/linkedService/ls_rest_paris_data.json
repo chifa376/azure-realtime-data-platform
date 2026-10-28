@@ -1,0 +1,13 @@
+{
+	"name": "ls_rest_paris_data",
+	"properties": {
+		"description": "Connexion REST a l'API Paris Data pour les donnees Velib",
+		"annotations": [],
+		"type": "RestService",
+		"typeProperties": {
+			"url": "https://opendata.paris.fr/",
+			"enableServerCertificateValidation": true,
+			"authenticationType": "Anonymous"
+		}
+	}
+}

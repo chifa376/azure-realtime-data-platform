@@ -1,0 +1,35 @@
+{
+	"name": "ds_adls_velib_bronze",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_adls_velib",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"p_directory": {
+				"type": "String"
+			},
+			"p_filename": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().p_filename",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().p_directory",
+					"type": "Expression"
+				},
+				"fileSystem": "velib-data"
+			},
+			"encodingName": "UTF-8"
+		},
+		"schema": {}
+	}
+}

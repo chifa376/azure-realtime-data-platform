@@ -1,0 +1,191 @@
+{
+	"name": "pl_ingest_velib",
+	"properties": {
+		"description": "Collecte paginee des stations Velib dans un dossier distinct par execution. Completude des fichiers a verifier avant traitement.",
+		"activities": [
+			{
+				"name": "get_station_count",
+				"description": "Lit le nombre de stations annonce par Paris Data.",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.00:05:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"headers": {
+						"Accept": "application/json"
+					},
+					"httpRequestTimeout": "00:01:40",
+					"url": "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/records?limit=1"
+				}
+			},
+			{
+				"name": "check_station_count",
+				"description": "Refuse une source vide ou un volume depassant la plage de pagination retenue.",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "get_station_count",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@and(greater(int(activity('get_station_count').output.total_count), 0), lessOrEquals(int(activity('get_station_count').output.total_count), 9900))",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "fail_invalid_station_count",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "Total de stations nul ou hors de la plage prise en charge : collecte interrompue.",
+								"errorCode": "INVALID_STATION_COUNT"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "for_each_page",
+				"description": "Copie les pages de 100 stations successivement.",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "check_station_count",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@range(0, div(add(int(activity('get_station_count').output.total_count), 99), 100))",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "copy_velib_page_to_bronze",
+							"description": "Conserve une page JSON avec son enveloppe total_count et results.",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.00:05:00",
+								"retry": 3,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "RestSource",
+									"httpRequestTimeout": "00:01:40",
+									"requestInterval": "00.00:00:01.000",
+									"requestMethod": "GET",
+									"paginationRules": {
+										"supportRFC5988": "false",
+										"MaxRequestNumber": "1"
+									}
+								},
+								"sink": {
+									"type": "JsonSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "JsonWriteSettings",
+										"filePattern": "setOfObjects"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_rest_velib_full",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_offset": {
+											"value": "@mul(item(), 100)",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_adls_velib_bronze",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_directory": {
+											"value": "@concat('bronze/velib/batch_id=', pipeline().RunId, '/pages')",
+											"type": "Expression"
+										},
+										"p_filename": {
+											"value": "@concat('page_', formatNumber(item(), '0000'), '.json')",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "write_collection_manifest",
+				"description": "Écrit le manifeste du lot après la réussite de toutes les copies. La validation des données est effectuée séparément.",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "for_each_page",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "PUT",
+					"headers": {
+						"Content-Type": "application/json",
+						"x-ms-blob-type": "BlockBlob",
+						"x-ms-version": "2023-11-03",
+						"x-ms-date": {
+							"value": "@formatDateTime(utcNow(), 'r')",
+							"type": "Expression"
+						}
+					},
+					"url": "@concat('https://stvelibchifa2026.blob.core.windows.net/velib-data/bronze/velib/batch_id=', pipeline().RunId, '/manifest.json')",
+					"body": "@concat(\n  '{\"schema_version\":\"1.0\",',\n  '\"batch_id\":\"', pipeline().RunId, '\",',\n  '\"pipeline_name\":\"', pipeline().Pipeline, '\",',\n  '\"source_dataset\":\"velib-disponibilite-en-temps-reel\",',\n  '\"pages_path\":\"bronze/velib/batch_id=', pipeline().RunId, '/pages/\",',\n  '\"expected_station_count\":', string(int(activity('get_station_count').output.total_count)), ',',\n  '\"expected_page_count\":', string(div(add(int(activity('get_station_count').output.total_count), 99), 100)), ',',\n  '\"page_size\":100,',\n  '\"collection_status\":\"copy_completed\",',\n  '\"validation_status\":\"pending\",',\n  '\"manifest_written_at_utc\":\"', utcNow(), '\"}'\n)",
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://storage.azure.com/"
+					}
+				}
+			}
+		],
+		"concurrency": 1,
+		"annotations": []
+	}
+}
