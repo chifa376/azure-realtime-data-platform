@@ -1,0 +1,21 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adf-velib-chifa-2026"
+		},
+		"ls_adls_velib_properties_typeProperties_url": {
+			"value": "https://stvelibchifa2026.dfs.core.windows.net/"
+		},
+		"ls_rest_paris_data_properties_typeProperties_url": {
+			"value": "https://opendata.paris.fr/"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}

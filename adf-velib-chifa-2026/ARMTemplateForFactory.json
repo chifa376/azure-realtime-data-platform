@@ -1,0 +1,440 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Nom de fabrique de données",
+			"defaultValue": "adf-velib-chifa-2026"
+		},
+		"ls_adls_velib_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://stvelibchifa2026.dfs.core.windows.net/"
+		},
+		"ls_rest_paris_data_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://opendata.paris.fr/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_ingest_velib')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Collecte paginee des stations Velib dans un dossier distinct par execution. Completude des fichiers a verifier avant traitement.",
+				"activities": [
+					{
+						"name": "get_station_count",
+						"description": "Lit le nombre de stations annonce par Paris Data.",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.00:05:00",
+							"retry": 3,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "GET",
+							"headers": {
+								"Accept": "application/json"
+							},
+							"httpRequestTimeout": "00:01:40",
+							"url": "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/records?limit=1"
+						}
+					},
+					{
+						"name": "check_station_count",
+						"description": "Refuse une source vide ou un volume depassant la plage de pagination retenue.",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "get_station_count",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@and(greater(int(activity('get_station_count').output.total_count), 0), lessOrEquals(int(activity('get_station_count').output.total_count), 9900))",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "fail_invalid_station_count",
+									"type": "Fail",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"message": "Total de stations nul ou hors de la plage prise en charge : collecte interrompue.",
+										"errorCode": "INVALID_STATION_COUNT"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "for_each_page",
+						"description": "Copie les pages de 100 stations successivement.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "check_station_count",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@range(0, div(add(int(activity('get_station_count').output.total_count), 99), 100))",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "copy_velib_page_to_bronze",
+									"description": "Conserve une page JSON avec son enveloppe total_count et results.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.00:05:00",
+										"retry": 3,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "RestSource",
+											"httpRequestTimeout": "00:01:40",
+											"requestInterval": "00.00:00:01.000",
+											"requestMethod": "GET",
+											"paginationRules": {
+												"supportRFC5988": "false",
+												"MaxRequestNumber": "1"
+											}
+										},
+										"sink": {
+											"type": "JsonSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "JsonWriteSettings",
+												"filePattern": "setOfObjects"
+											}
+										},
+										"enableStaging": false
+									},
+									"inputs": [
+										{
+											"referenceName": "ds_rest_velib_full",
+											"type": "DatasetReference",
+											"parameters": {
+												"p_offset": {
+													"value": "@mul(item(), 100)",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ds_adls_velib_bronze",
+											"type": "DatasetReference",
+											"parameters": {
+												"p_directory": {
+													"value": "@concat('bronze/velib/batch_id=', pipeline().RunId, '/pages')",
+													"type": "Expression"
+												},
+												"p_filename": {
+													"value": "@concat('page_', formatNumber(item(), '0000'), '.json')",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					},
+					{
+						"name": "write_collection_manifest",
+						"description": "Écrit le manifeste du lot après la réussite de toutes les copies. La validation des données est effectuée séparément.",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "for_each_page",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 3,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "PUT",
+							"headers": {
+								"Content-Type": "application/json",
+								"x-ms-blob-type": "BlockBlob",
+								"x-ms-version": "2023-11-03",
+								"x-ms-date": {
+									"value": "@formatDateTime(utcNow(), 'r')",
+									"type": "Expression"
+								}
+							},
+							"url": {
+								"value": "@concat('https://stvelibchifa2026.blob.core.windows.net/velib-data/bronze/velib/batch_id=', pipeline().RunId, '/manifest.json')",
+								"type": "Expression"
+							},
+							"body": {
+								"value": "@concat(\n  '{\"schema_version\":\"1.0\",',\n  '\"batch_id\":\"', pipeline().RunId, '\",',\n  '\"pipeline_name\":\"', pipeline().Pipeline, '\",',\n  '\"source_dataset\":\"velib-disponibilite-en-temps-reel\",',\n  '\"pages_path\":\"bronze/velib/batch_id=', pipeline().RunId, '/pages/\",',\n  '\"expected_station_count\":', string(int(activity('get_station_count').output.total_count)), ',',\n  '\"expected_page_count\":', string(div(add(int(activity('get_station_count').output.total_count), 99), 100)), ',',\n  '\"page_size\":100,',\n  '\"collection_status\":\"copy_completed\",',\n  '\"validation_status\":\"pending\",',\n  '\"manifest_written_at_utc\":\"', utcNow(), '\"}'\n)",
+								"type": "Expression"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://storage.azure.com/"
+							}
+						}
+					}
+				],
+				"concurrency": 1,
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_rest_velib_full')]",
+				"[concat(variables('factoryId'), '/datasets/ds_adls_velib_bronze')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_ingest_velib_test')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Test de collecte de 20 stations Velib depuis Paris Data vers le Data Lake au format JSON.",
+				"activities": [
+					{
+						"name": "copy_velib_api_to_raw",
+						"description": "Copie des donnees Velib depuis Paris Data vers le Data Lake.",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.5:00:00",
+							"retry": 3,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET",
+								"paginationRules": {
+									"supportRFC5988": "true"
+								}
+							},
+							"sink": {
+								"type": "JsonSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "JsonWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_rest_velib",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_adls_velib_raw",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_rest_velib')]",
+				"[concat(variables('factoryId'), '/datasets/ds_adls_velib_raw')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_adls_velib_bronze')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adls_velib",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"p_directory": {
+						"type": "String"
+					},
+					"p_filename": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().p_filename",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().p_directory",
+							"type": "Expression"
+						},
+						"fileSystem": "velib-data"
+					},
+					"encodingName": "UTF-8"
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adls_velib')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_adls_velib_raw')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adls_velib",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "velib_test.json",
+						"folderPath": "raw/velib/test",
+						"fileSystem": "velib-data"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adls_velib')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_rest_velib')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_rest_paris_data",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": "api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/records?limit=20"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_rest_paris_data')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_rest_velib_full')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_rest_paris_data",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"p_offset": {
+						"type": "Int",
+						"defaultValue": 0
+					}
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": {
+						"value": "@concat('api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/records?limit=100&order_by=stationcode&offset=', string(dataset().p_offset))",
+						"type": "Expression"
+					}
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_rest_paris_data')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_adls_velib')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('ls_adls_velib_properties_typeProperties_url')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_rest_paris_data')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Connexion REST a l'API Paris Data pour les donnees Velib",
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('ls_rest_paris_data_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
