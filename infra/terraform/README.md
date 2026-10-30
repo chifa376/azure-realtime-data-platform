@@ -105,3 +105,20 @@ intervention utilisateur.
 - Tester la reproductibilité du déploiement complet.
 
 Le bonus Terraform est donc partiellement réalisé.
+
+## État Terraform partagé
+
+L’état a été migré le 30 octobre 2026 vers le backend Azure :
+
+- Compte : stvelibchifa2026
+- Conteneur : tfstate
+- Fichier : velib.terraform.tfstate
+- Authentification : Microsoft Entra via Azure CLI
+- Verrouillage : fourni par le backend Azure
+
+Migration vérifiée : cinq ressources présentes et plan « No changes ».
+Une sauvegarde préalable est conservée hors du dépôt par Chifa.
+
+Les collaborateurs doivent utiliser la configuration backend.tf commune.
+Ne pas répéter les imports ni créer un état indépendant pour ces ressources.
+Ne pas publier les états ou leurs sauvegardes dans Git.
