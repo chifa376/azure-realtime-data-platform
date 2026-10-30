@@ -1,3 +1,4 @@
+
 # Terraform providers and local state
 **/.terraform/*
 *.tfstate
@@ -12,3 +13,35 @@
 # Crash logs
 crash.log
 crash.*.log
+
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local data (Bronze, Silver, Gold)
+data/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and temporary files
+.vscode/
+*.log
+
+# Package testing environment
+.venv_package_test/
+
+# Python package build artifacts
+build/
+dist/
+*.egg-info/
