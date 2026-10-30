@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "velib-data-platform"
+version = "0.1.0"
+description = "5CLOUD - Transformations Silver et Gold Velib"
+requires-python = ">=3.10"
+dependencies = [
+    "pyspark>=3.4,<4"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src", "src.*"]
+namespaces = true
