@@ -1,4 +1,4 @@
-﻿resource "azurerm_synapse_spark_pool" "velib" {
+resource "azurerm_synapse_spark_pool" "velib" {
   name                 = "sparkvelib"
   synapse_workspace_id = azurerm_synapse_workspace.velib.id
 
