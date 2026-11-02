@@ -1,0 +1,13 @@
+{
+	"name": "ls_synapse_velib_artifacts",
+	"properties": {
+		"description": "Connexion ADF vers Synapse pour executer le notebook Velib Silver et Gold.",
+		"annotations": [],
+		"type": "AzureSynapseArtifacts",
+		"typeProperties": {
+			"endpoint": "https://syn-velib-data-platform-2026.dev.azuresynapse.net",
+			"authentication": "MSI",
+			"workspaceResourceId": "/subscriptions/941ee33e-646f-4eb4-9cee-224928bb31a9/resourceGroups/rg-velib-data-platform/providers/Microsoft.Synapse/workspaces/syn-velib-data-platform-2026"
+		}
+	}
+}
