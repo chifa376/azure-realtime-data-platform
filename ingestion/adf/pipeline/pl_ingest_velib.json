@@ -19,7 +19,8 @@
 				"typeProperties": {
 					"method": "GET",
 					"headers": {
-						"Accept": "application/json"
+						"Accept": "application/json",
+						"Accept-Encoding": "identity"
 					},
 					"httpRequestTimeout": "00:01:40",
 					"url": "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/records?limit=1"
