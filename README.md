@@ -377,6 +377,28 @@ Le ZIP doit contenir les sources et ressources nécessaires à la revue, y compr
 7. Présenter la supervision, un échec testé et le plan Terraform.
 
 Les étapes Bronze → Synapse → Silver/Gold → SQL ont été vérifiées sur le batch du 2 novembre. Power BI et son actualisation restent à vérifier. Mesurer les durées de démarrage Spark et d’actualisation avant de figer le scénario de 15 minutes ; ne pas supposer un temps de démarrage constant.
+### Validation de l’orchestration ADF — 2 novembre 2026
+
+Le pipeline `pl_ingest_velib` a été exécuté avec succès depuis
+la version publiée dans Azure Data Factory, par déclenchement manuel.
+
+- Identifiant d’exécution : `e027d9df-7bb9-4a18-bd34-d0ebc5760087`
+- Durée : 7 min 27 s
+- Résultat : réussite de la collecte Bronze et du notebook Silver/Gold.
+- Vérification dans ADLS : présence des fichiers Parquet et des marqueurs
+  `_SUCCESS` pour ce lot dans Silver, Gold/global et Gold/communes.
+
+Le problème de réponse gzip de l’activité Web utilisée pour lire le
+nombre de stations a été corrigé. Le pipeline utilise désormais
+`copy_station_count` pour enregistrer la réponse JSON dans ADLS,
+puis `read_station_count` pour lire `firstRow.total_count`.
+
+La correction a été fusionnée dans `main` via la PR #9, puis publiée
+dans Azure Data Factory.
+
+Restent à valider : les scénarios d’échec et de reprise, ainsi que
+le déclenchement planifié. Cette exécution ne valide pas encore
+le rafraîchissement Power BI.
 
 ### Répartition proposée des 15 minutes
 
