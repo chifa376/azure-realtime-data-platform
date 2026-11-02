@@ -15,6 +15,10 @@
 			"type": "string",
 			"defaultValue": "https://opendata.paris.fr/"
 		},
+		"ls_synapse_velib_artifacts_properties_typeProperties_endpoint": {
+			"type": "string",
+			"defaultValue": "https://syn-velib-data-platform-2026.dev.azuresynapse.net"
+		},
 		"containerUri": {
 			"type": "string",
 			"metadata": "URI pour le compte de stockage contenant des modèles ARM liés"
@@ -47,6 +51,9 @@
 					},
 					"ls_rest_paris_data_properties_typeProperties_url": {
 						"value": "[parameters('ls_rest_paris_data_properties_typeProperties_url')]"
+					},
+					"ls_synapse_velib_artifacts_properties_typeProperties_endpoint": {
+						"value": "[parameters('ls_synapse_velib_artifacts_properties_typeProperties_endpoint')]"
 					}
 				}
 			},

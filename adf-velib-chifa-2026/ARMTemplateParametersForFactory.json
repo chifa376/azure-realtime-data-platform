@@ -10,6 +10,9 @@
 		},
 		"ls_rest_paris_data_properties_typeProperties_url": {
 			"value": "https://opendata.paris.fr/"
+		},
+		"ls_synapse_velib_artifacts_properties_typeProperties_endpoint": {
+			"value": "https://syn-velib-data-platform-2026.dev.azuresynapse.net"
 		}
 	}
 }

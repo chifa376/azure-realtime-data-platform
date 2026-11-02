@@ -14,6 +14,10 @@
 		"ls_rest_paris_data_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://opendata.paris.fr/"
+		},
+		"ls_synapse_velib_artifacts_properties_typeProperties_endpoint": {
+			"type": "string",
+			"defaultValue": "https://syn-velib-data-platform-2026.dev.azuresynapse.net"
 		}
 	},
 	"variables": {
@@ -45,6 +49,22 @@
 					"url": "[parameters('ls_rest_paris_data_properties_typeProperties_url')]",
 					"enableServerCertificateValidation": true,
 					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_synapse_velib_artifacts')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Connexion ADF vers Synapse pour executer le notebook Velib Silver et Gold.",
+				"annotations": [],
+				"type": "AzureSynapseArtifacts",
+				"typeProperties": {
+					"endpoint": "[parameters('ls_synapse_velib_artifacts_properties_typeProperties_endpoint')]",
+					"authentication": "MSI",
+					"workspaceResourceId": "/subscriptions/941ee33e-646f-4eb4-9cee-224928bb31a9/resourceGroups/rg-velib-data-platform/providers/Microsoft.Synapse/workspaces/syn-velib-data-platform-2026"
 				}
 			},
 			"dependsOn": []
@@ -186,7 +206,8 @@
 						"typeProperties": {
 							"method": "GET",
 							"headers": {
-								"Accept": "application/json"
+								"Accept": "application/json",
+								"Accept-Encoding": "identity"
 							},
 							"httpRequestTimeout": "00:01:40",
 							"url": "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/records?limit=1"
@@ -356,6 +377,62 @@
 								"resource": "https://storage.azure.com/"
 							}
 						}
+					},
+					{
+						"name": "run_silver_gold",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "write_collection_manifest",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": {
+									"value": "velib_synapse",
+									"type": "Expression"
+								},
+								"type": "NotebookReference"
+							},
+							"parameters": {
+								"batch_id": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "string"
+								}
+							},
+							"snapshot": true,
+							"sparkPool": {
+								"referenceName": {
+									"value": "sparkvelib",
+									"type": "Expression"
+								},
+								"type": "BigDataPoolReference"
+							},
+							"conf": {
+								"spark.dynamicAllocation.enabled": null,
+								"spark.dynamicAllocation.minExecutors": null,
+								"spark.dynamicAllocation.maxExecutors": null
+							},
+							"numExecutors": null
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_synapse_velib_artifacts",
+							"type": "LinkedServiceReference"
+						}
 					}
 				],
 				"concurrency": 1,
@@ -365,6 +442,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_synapse_velib_artifacts')]",
 				"[concat(variables('factoryId'), '/datasets/ds_rest_velib_full')]",
 				"[concat(variables('factoryId'), '/datasets/ds_adls_velib_bronze')]"
 			]
