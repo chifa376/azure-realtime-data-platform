@@ -29,3 +29,29 @@ Cet enregistrement doit être créé après validation des trois jeux de donnée
 - Vérifier le comportement des tentatives automatiques d'ADF.
 - Tester la publication et les vues SQL dynamiques sur un nouveau lot.
 - Mettre à jour le package Python installé dans le pool Synapse avant le déploiement.
+
+
+## Configuration ADF vérifiée
+
+Pipeline : `pl_ingest_velib`
+
+Activité : `run_silver_gold`
+
+- Notebook : `velib_synapse`
+- Pool Spark : `sparkvelib`
+- Paramètre batch_id : `@pipeline().RunId`
+- Retry automatique : 0
+- Dépendance : `write_collection_manifest` doit réussir
+
+## Procédure de reprise retenue pour la première version
+
+Si une exécution échoue après une écriture partielle :
+
+1. Ne pas publier le lot dans le registre Gold.
+2. Ne pas écraser automatiquement les fichiers existants.
+3. Identifier les dossiers Silver, Gold Global et Gold Communes déjà créés.
+4. Vérifier leur intégrité et leur cohérence.
+5. Décider d'une reprise contrôlée ou d'une nouvelle collecte avec un nouveau batch_id.
+
+La relance automatique d'un lot partiel n'est pas activée.
+La procédure devra être validée avec Chifa avant le déploiement Azure.
