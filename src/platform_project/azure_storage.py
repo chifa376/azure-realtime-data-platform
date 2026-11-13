@@ -2,6 +2,7 @@
 from pyspark.sql import DataFrame, SparkSession
 
 
+
 def write_parquet_to_adls(
     df: DataFrame,
     output_path: str
@@ -9,8 +10,7 @@ def write_parquet_to_adls(
     """
     Écrit un DataFrame Spark en Parquet dans ADLS Gen2.
 
-    Le dossier du lot est remplacé en cas de
-    réexécution du même traitement.
+    Empêche l'écrasement d'un dossier existant.
     """
 
     if not output_path.startswith("abfss://"):
@@ -19,16 +19,19 @@ def write_parquet_to_adls(
         )
 
     if df.limit(1).count() == 0:
-        raise ValueError("Impossible d'écrire un DataFrame vide")
+        raise ValueError(
+            "Impossible d'écrire un DataFrame vide"
+        )
 
     (
         df.write
-        .mode("overwrite")
+        .mode("errorifexists")
         .format("parquet")
         .save(output_path)
     )
 
     print("Écriture Parquet terminée :", output_path)
+
 
 
 def read_parquet_from_adls(
