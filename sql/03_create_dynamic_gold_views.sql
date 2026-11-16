@@ -60,10 +60,22 @@ SELECT
     c.empty_stations,
     c.full_stations,
     c.stale_stations
-
 FROM OPENROWSET(
     BULK 'https://stvelibchifa2026.dfs.core.windows.net/velib-data/gold/velib/communes/batch_id=*/*.parquet',
     FORMAT = 'PARQUET'
+)
+WITH (
+    batch_id VARCHAR(36) COLLATE Latin1_General_100_BIN2_UTF8,
+    commune VARCHAR(200) COLLATE Latin1_General_100_BIN2_UTF8,
+    commune_code VARCHAR(10) COLLATE Latin1_General_100_BIN2_UTF8,
+    total_stations BIGINT,
+    total_bikes BIGINT,
+    mechanical_bikes BIGINT,
+    electric_bikes BIGINT,
+    available_docks BIGINT,
+    empty_stations BIGINT,
+    full_stations BIGINT,
+    stale_stations BIGINT
 ) AS c
 INNER JOIN dbo.vw_velib_latest_published_batch AS p
     ON c.batch_id = p.batch_id;

@@ -2,8 +2,7 @@
 import pytest
 from pyspark.sql import SparkSession
 
-from platform_project.aggregations import build_gold_communes
-
+from src.platform_project.aggregations import build_gold_communes
 
 @pytest.fixture(scope="module")
 def spark():
