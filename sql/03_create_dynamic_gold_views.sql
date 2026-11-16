@@ -57,7 +57,10 @@ SELECT
     c.mechanical_bikes,
     c.electric_bikes,
     c.available_docks,
+    c.empty_stations,
+    c.full_stations,
     c.stale_stations
+
 FROM OPENROWSET(
     BULK 'https://stvelibchifa2026.dfs.core.windows.net/velib-data/gold/velib/communes/batch_id=*/*.parquet',
     FORMAT = 'PARQUET'
